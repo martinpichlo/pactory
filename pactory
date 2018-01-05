@@ -1,0 +1,202 @@
+# Pacman History - Logfile Parser for pacman.log
+# Martin Pichlo - 01.01.2018
+
+#Usage
+#paclog.sh 				- Prints all commands
+#paclog.sh <regex>			- Regex search in: Date+Mode+Explicit+Packages
+#paclog.sh [regex] <options>		- Options
+
+#Mode values: {installed, removed, upgraded, reinstalled}
+
+#Options
+#-q					- quite output (for reusing in other commands like pacman)
+#-c					- colored output
+#-s					- short output (one line per transaction)
+
+#regex-Examples
+#paclog.sh "2018-01-01"			- Filter for commands of a date
+#paclog.sh "2018-01-01.*vim		- ... and a package (explicit or deps)
+#paclog.sh "2018-01-01.* inst.*vim 	- ... installed and package (Hint: Space in front of installed exclude reinstalled)
+
+#Example 1: Select packages and check, if they are installed
+#comm -12 <(pacman -Qq | sort) <(./paclog.sh "installed.*vim" -q | sort)
+
+#configuration
+logfile="/var/log/pacman.log"
+string_run="[PACMAN] Running 'pacman"
+string_sot="[ALPM] transaction started"
+string_eot="[ALPM] transaction completed"
+string_ins="[ALPM] installed"
+string_upr="[ALPM] upgraded"
+string_rem="[ALPM] removed"
+string_rei="[ALPM] reinstalled"
+
+#ersetzen durch "true" und "false" (ohne variable)
+true="1"
+false="0"
+
+#parameters for read command
+IFS=" "					#splitt by space
+
+date=""					#Date
+expl=""					#Explicit
+deps=""					#Dependency
+mode=""					#Mode (installed, removed, upgraded)
+
+split_pacman() {
+
+	#Folgende Zeichen im String löschen ', [, ]
+	str=$1
+	str=${str//\'/}
+	str=${str//\[/}
+	str=${str//\]/}
+
+	#String nach Leerzeichen aufsplitten
+        read -ra array <<< "$str"
+
+	#echo "Pacman Array: ${array[@]}"
+
+	date="${array[0]} ${array[1]}"
+
+	#Array durchlaufen
+	pacman=$false
+	expl=""
+	for i in "${array[@]}"; do
+
+		if [ "$pacman" == "$true" ]; then
+
+			if [[ ${i:0:1} != "-" ]] && [[ ${i:0:1} != "/" ]]; then
+
+				if [ -z "$expl" ]; then
+					expl="$i"
+				else
+					expl="$expl $i"
+				fi
+			fi
+
+		fi
+
+		#Flag setzen, dass "pacman" Aufruf erfolgt ist
+		if [ "$i" == "pacman" ]; then
+			pacman="$true"
+		fi
+
+	done
+
+}
+
+split_prog() {
+
+	str=$1
+
+        read -ra array <<< "$str"
+	prog="${array[4]}"
+	mode="${array[3]}"
+
+	#build string with program names
+	if [ -z "$deps" ]; then
+		deps="$prog"
+	else
+		deps="$deps $prog"
+	fi
+
+}
+
+output() {
+
+	if [[ "$options" == *"q"* ]]; then
+		read -ra array <<< "$deps"
+		for i in "${array[@]}"; do
+			echo $i
+		done
+		return
+	fi
+
+	if [[ "$options" == *"s"* ]]; then
+		echo "$date | $mode | ${green}$expl${reset} | $deps"
+		return
+	fi
+
+	echo "Date: $date"
+	echo "Mode: $mode"
+	echo "Explicit: ${green}$expl${reset}"
+	echo "Packages: $deps"
+	echo
+
+}
+
+
+
+start() {
+
+	filter="$1"
+	options="$2"
+
+	#parameters for echo
+	if [[ $options == *"c"* ]]; then
+		green=$(tput setaf 2)
+		reset=$(tput sgr0)
+	fi
+
+	sot="$false"				#Start of Transaction
+
+	while read line
+	do
+
+		#Running pacman...
+		if [[ "$line" == *"$string_run"* ]]; then
+			expl="$line"
+			sot="$false"
+			continue
+		fi
+
+		#transaction started
+		if [ -n "$expl" ]; then
+			if [[ "$line" == *"$string_sot"* ]]; then
+				sot=$true
+				#echo "$expl"
+				split_pacman "$expl"
+				continue
+			fi
+		fi
+
+		#packages installed, upgraded or removed
+		if [ "$sot" == "$true" ]; then
+
+			if [[ "$line" == *"$string_ins"* ]] ||
+			   [[ "$line" == *"$string_upr"* ]] ||
+			   [[ "$line" == *"$string_rem"* ]] ||
+		   	   [[ "$line" == *"$string_rei"* ]]; then
+               	 		#echo $line
+				split_prog "$line"
+		                continue
+		        fi
+		fi
+
+		#transaction completed
+		if [[ "$line" == *"$string_eot"* ]]; then
+
+			if [ -z "$filter" ];then
+				output
+			else
+				search="$date $mode $expl $deps"
+				if [[ ${search} =~ $filter ]]; then
+					output
+				fi
+			fi
+
+			date=""
+			expl=""
+			mode=""
+			deps=""
+			search=""
+	        	sot="$false"
+			continue
+		fi
+
+
+	done < $logfile
+
+}
+
+start "$1" "$2"
