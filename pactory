@@ -1,6 +1,8 @@
 # Pacman History - Logfile Parser for pacman.log
 # Martin Pichlo - 01.01.2018
 
+#neue version
+
 #Usage
 #paclog.sh 				- Prints all commands
 #paclog.sh <regex>			- Regex search in: Date+Mode+Explicit+Packages
