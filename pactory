@@ -1,27 +1,6 @@
 # Pacman History - Logfile Parser for pacman.log
-# Martin Pichlo - 01.01.2018
-
-#neue version
-
-#Usage
-#paclog.sh 				- Prints all commands
-#paclog.sh <regex>			- Regex search in: Date+Mode+Explicit+Packages
-#paclog.sh [regex] <options>		- Options
-
-#Mode values: {installed, removed, upgraded, reinstalled}
-
-#Options
-#-q					- quite output (for reusing in other commands like pacman)
-#-c					- colored output
-#-s					- short output (one line per transaction)
-
-#regex-Examples
-#paclog.sh "2018-01-01"			- Filter for commands of a date
-#paclog.sh "2018-01-01.*vim		- ... and a package (explicit or deps)
-#paclog.sh "2018-01-01.* inst.*vim 	- ... installed and package (Hint: Space in front of installed exclude reinstalled)
-
-#Example 1: Select packages and check, if they are installed
-#comm -12 <(pacman -Qq | sort) <(./paclog.sh "installed.*vim" -q | sort)
+# 01.01.2018, Martin Pichlo, First Version
+# 16.02.2018, Martin Pichlo, Enhanced command line parameter interpretation
 
 #configuration
 logfile="/var/log/pacman.log"
@@ -45,6 +24,61 @@ expl=""					#Explicit
 deps=""					#Dependency
 mode=""					#Mode (installed, removed, upgraded)
 
+# command line parameter interpretation
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -q|--quite)
+    param_quite=true
+    shift
+    ;;
+    -c|--color)
+    param_color=true
+    shift
+    ;;
+    -s|--short)
+    param_short=true
+    shift
+    ;;
+    -h|--help)
+    param_help=true
+    shift
+    ;;
+    *)
+    param_regex=("$1")
+    shift
+    ;;
+esac
+done
+
+help_message() {
+
+    echo "Usage: paclog [search] [options] or paclog [options] [search]"
+    echo
+    echo "Options:"
+    echo "-q|--quite        quite output (for reusing in other commands like pacman)"
+    echo "-c|--color        colored output"
+    echo "-s|--short        short output (one line per transaction)"
+
+    #Usage
+    #paclog.sh                      - Prints all commands
+    #paclog.sh <regex>              - Regex search in: Date+Mode+Explicit+Packages
+    #paclog.sh [regex] <options>    - Options
+
+    #Mode values: {installed, removed, upgraded, reinstalled}
+
+    #regex-Examples
+    #paclog.sh "2018-01-01"			- Filter for commands of a date
+    #paclog.sh "2018-01-01.*vim		- ... and a package (explicit or deps)
+    #paclog.sh "2018-01-01.* inst.*vim 	- ... installed and package (Hint: Space in front of installed exclude reinstalled)
+
+    #Example 1: Select packages and check, if they are installed
+    #comm -12 <(pacman -Qq | sort) <(./paclog.sh "installed.*vim" -q | sort)
+
+}
+
 split_pacman() {
 
 	#Folgende Zeichen im String löschen ', [, ]
@@ -54,7 +88,7 @@ split_pacman() {
 	str=${str//\]/}
 
 	#String nach Leerzeichen aufsplitten
-        read -ra array <<< "$str"
+    read -ra array <<< "$str"
 
 	#echo "Pacman Array: ${array[@]}"
 
@@ -91,7 +125,7 @@ split_prog() {
 
 	str=$1
 
-        read -ra array <<< "$str"
+    read -ra array <<< "$str"
 	prog="${array[4]}"
 	mode="${array[3]}"
 
@@ -106,7 +140,7 @@ split_prog() {
 
 output() {
 
-	if [[ "$options" == *"q"* ]]; then
+	if [[ "${param_quite}" = true ]]; then
 		read -ra array <<< "$deps"
 		for i in "${array[@]}"; do
 			echo $i
@@ -114,7 +148,7 @@ output() {
 		return
 	fi
 
-	if [[ "$options" == *"s"* ]]; then
+	if [[ "${param_short}" = true ]]; then
 		echo "$date | $mode | ${green}$expl${reset} | $deps"
 		return
 	fi
@@ -127,15 +161,20 @@ output() {
 
 }
 
-
-
 start() {
 
-	filter="$1"
-	options="$2"
+##	filter="$1"
+##	options="$2"
+
+    #help message
+	if [[ "${param_help}" ]]; then
+        help_message
+        exit
+    fi
+
 
 	#parameters for echo
-	if [[ $options == *"c"* ]]; then
+	if [[ "${param_color}" ]]; then
 		green=$(tput setaf 2)
 		reset=$(tput sgr0)
 	fi
@@ -178,11 +217,11 @@ start() {
 		#transaction completed
 		if [[ "$line" == *"$string_eot"* ]]; then
 
-			if [ -z "$filter" ];then
+			if [ -z "${param_search}" ];then
 				output
 			else
 				search="$date $mode $expl $deps"
-				if [[ ${search} =~ $filter ]]; then
+				if [[ ${search} =~ $param_search ]]; then
 					output
 				fi
 			fi
@@ -192,7 +231,7 @@ start() {
 			mode=""
 			deps=""
 			search=""
-	        	sot="$false"
+        	sot="$false"
 			continue
 		fi
 
@@ -201,4 +240,4 @@ start() {
 
 }
 
-start "$1" "$2"
+start
