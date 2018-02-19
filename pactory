@@ -53,7 +53,7 @@ case $key in
 esac
 done
 
-help_message() {
+usage() {
 
     echo "Usage: paclog [search] [options] or paclog [options] [search]"
     echo
@@ -168,7 +168,7 @@ start() {
 
     #help message
 	if [[ "${param_help}" ]]; then
-        help_message
+        usage
         exit
     fi
 
