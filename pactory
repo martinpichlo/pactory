@@ -47,7 +47,7 @@ case $key in
     shift
     ;;
     *)
-    param_regex=("$1")
+    param_search=("$1")
     shift
     ;;
 esac
