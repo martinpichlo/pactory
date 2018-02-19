@@ -4,13 +4,13 @@
 
 #configuration
 logfile="/var/log/pacman.log"
-string_run="[PACMAN] Running 'pacman"
+string_run="[PACMAN] Running"
 string_sot="[ALPM] transaction started"
 string_eot="[ALPM] transaction completed"
 string_ins="[ALPM] installed"
 string_upr="[ALPM] upgraded"
 string_rem="[ALPM] removed"
-string_rei="[ALPM] reinstalled"
+string_rei="reinstalled"
 
 #ersetzen durch "true" und "false" (ohne variable)
 true="1"
@@ -19,10 +19,11 @@ false="0"
 #parameters for read command
 IFS=" "					#splitt by space
 
+#declarations
 date=""					#Date
 expl=""					#Explicit
 deps=""					#Dependency
-mode=""					#Mode (installed, removed, upgraded)
+mode=""					#Mode (installed, removed, upgraded, reinstalled)
 
 # command line parameter interpretation
 POSITIONAL=()
@@ -79,6 +80,79 @@ usage() {
 
 }
 
+start() {
+
+    #help message
+	if [[ "${param_help}" ]]; then
+        usage
+        exit
+    fi
+
+	#parameters for echo
+	if [[ "${param_color}" ]]; then
+		green=$(tput setaf 2)
+		reset=$(tput sgr0)
+	fi
+
+	sot="$false"				#Start of Transaction
+
+	while read line
+	do
+
+		#Running pacman...
+		if [[ "$line" == *"$string_run"* ]]; then
+			expl="$line"
+			sot="$false"
+            continue
+		fi
+
+		#transaction started
+		if [ -n "$expl" ]; then
+			if [[ "$line" == *"$string_sot"* ]]; then
+				sot=$true
+				#echo "$expl"
+				split_pacman "$expl"
+				continue
+			fi
+		fi
+
+		#packages installed, upgraded, removed or reinstalled
+		if [ "$sot" == "$true" ]; then
+
+			if [[ "$line" == *"$string_ins"* ]] ||
+			   [[ "$line" == *"$string_upr"* ]] ||
+			   [[ "$line" == *"$string_rem"* ]] ||
+		   	   [[ "$line" == *"$string_rei"* ]]; then
+				    split_prog "$line"
+		            continue
+		        fi
+		fi
+
+		#transaction completed
+		if [[ "$line" == *"$string_eot"* ]]; then
+
+			if [ -z "${param_search}" ];then
+				output
+			else
+				search="$date $mode $expl $deps"
+				if [[ ${search} =~ $param_search ]]; then
+					output
+				fi
+			fi
+
+			date=""
+			expl=""
+			mode=""
+			deps=""
+			search=""
+        	sot="$false"
+			continue
+		fi
+
+	done < $logfile
+
+}
+
 split_pacman() {
 
 	#Folgende Zeichen im String löschen ', [, ]
@@ -95,27 +169,25 @@ split_pacman() {
 	date="${array[0]} ${array[1]}"
 
 	#Array durchlaufen
-	pacman=$false
-	expl=""
+	options=false
+    expl=""
 	for i in "${array[@]}"; do
 
-		if [ "$pacman" == "$true" ]; then
+        # check if options were allready read
+        if [ "$options" == true ]; then
 
-			if [[ ${i:0:1} != "-" ]] && [[ ${i:0:1} != "/" ]]; then
-
-				if [ -z "$expl" ]; then
-					expl="$i"
-				else
-					expl="$expl $i"
-				fi
+			if [ -z "$expl" ]; then
+				expl="$i"
+			else
+				expl="$expl $i"
 			fi
 
 		fi
 
-		#Flag setzen, dass "pacman" Aufruf erfolgt ist
-		if [ "$i" == "pacman" ]; then
-			pacman="$true"
-		fi
+        # check for options
+        if [[ "${i:0:1}" == "-" ]]; then
+            options=true
+        fi
 
 	done
 
@@ -158,85 +230,6 @@ output() {
 	echo "Explicit: ${green}$expl${reset}"
 	echo "Packages: $deps"
 	echo
-
-}
-
-start() {
-
-##	filter="$1"
-##	options="$2"
-
-    #help message
-	if [[ "${param_help}" ]]; then
-        usage
-        exit
-    fi
-
-
-	#parameters for echo
-	if [[ "${param_color}" ]]; then
-		green=$(tput setaf 2)
-		reset=$(tput sgr0)
-	fi
-
-	sot="$false"				#Start of Transaction
-
-	while read line
-	do
-
-		#Running pacman...
-		if [[ "$line" == *"$string_run"* ]]; then
-			expl="$line"
-			sot="$false"
-			continue
-		fi
-
-		#transaction started
-		if [ -n "$expl" ]; then
-			if [[ "$line" == *"$string_sot"* ]]; then
-				sot=$true
-				#echo "$expl"
-				split_pacman "$expl"
-				continue
-			fi
-		fi
-
-		#packages installed, upgraded or removed
-		if [ "$sot" == "$true" ]; then
-
-			if [[ "$line" == *"$string_ins"* ]] ||
-			   [[ "$line" == *"$string_upr"* ]] ||
-			   [[ "$line" == *"$string_rem"* ]] ||
-		   	   [[ "$line" == *"$string_rei"* ]]; then
-               	 		#echo $line
-				split_prog "$line"
-		                continue
-		        fi
-		fi
-
-		#transaction completed
-		if [[ "$line" == *"$string_eot"* ]]; then
-
-			if [ -z "${param_search}" ];then
-				output
-			else
-				search="$date $mode $expl $deps"
-				if [[ ${search} =~ $param_search ]]; then
-					output
-				fi
-			fi
-
-			date=""
-			expl=""
-			mode=""
-			deps=""
-			search=""
-        	sot="$false"
-			continue
-		fi
-
-
-	done < $logfile
 
 }
 
