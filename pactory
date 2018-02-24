@@ -1,7 +1,7 @@
 # Pacman History - Logfile Parser for pacman.log
 # 01.01.2018, Martin Pichlo, First Version
 # 16.02.2018, Martin Pichlo, Enhanced command line parameter interpretation
-# 19.02.2018, Martin Pichlo, Bugfixing for reinstalled package
+# 19.02.2018, Martin Pichlo, Bugfixing for reinstalled package, v.1.0.0
 
 # Ideen:
 # - Parameter einbauen, dass Originalzeilen, statt pactory Ausgabe erfolgt
