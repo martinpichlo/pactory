@@ -29,8 +29,8 @@ IFS=" "					#splitt by space
 
 #declarations
 date=""					#Date
-expl=""					#Explicit
-deps=""					#Dependency
+expl=()					#Explicit
+deps=()					#Dependency
 mode=""					#Mode (installed, removed, upgraded, reinstalled)
 
 # command line parameter interpretation
@@ -109,17 +109,17 @@ start() {
 
 		#Running pacman...
 		if [[ "$line" == *"$string_run"* ]]; then
-			expl="$line"
+			expl_line="$line"
 			sot="$false"
             continue
 		fi
 
 		#transaction started
-		if [ -n "$expl" ]; then
+		if [ -n "$expl_line" ]; then
 			if [[ "$line" == *"$string_sot"* ]]; then
 				sot=$true
-				#echo "$expl"
-				split_pacman "$expl"
+				#echo "$expl_line"
+				split_pacman "$expl_line"
 				continue
 			fi
 		fi
@@ -148,10 +148,11 @@ start() {
 				fi
 			fi
 
-			date=""
-			expl=""
+			expl_line=""
+            date=""
+			unset expl
+			unset deps
 			mode=""
-			deps=""
 			search=""
         	sot="$false"
 			continue
@@ -178,17 +179,19 @@ split_pacman() {
 
 	#Array durchlaufen
 	options=false
-    expl=""
+    expl=()
 	for i in "${array[@]}"; do
 
         # check if options were allready read
         if [ "$options" == true ]; then
 
-			if [ -z "$expl" ]; then
-				expl="$i"
-			else
-				expl="$expl $i"
-			fi
+			expl+=("$i")
+
+            #if [ -z "$expl" ]; then
+			#	expl="$i"
+			#else
+			#	expl="$expl $i"
+			#fi
 
 		fi
 
@@ -210,11 +213,12 @@ split_prog() {
 	mode="${array[3]}"
 
 	#build string with program names
-	if [ -z "$deps" ]; then
-		deps="$prog"
-	else
-		deps="$deps $prog"
-	fi
+	#if [ -z "$deps" ]; then
+	#	deps="$prog"
+	#else
+	#	deps="$deps $prog"
+	#fi
+    deps+=("$mode")
 
 }
 
@@ -233,14 +237,14 @@ output() {
 	fi
 
 	if [[ "${param_short}" = true ]]; then
-		echo "$date | $mode | ${green}$expl${reset} | $deps"
-		return
+		echo "$date | $mode | ${green}${expl[@]}${reset} | ${deps[@]}"
+        return
 	fi
 
 	echo "Date: $date"
 	echo "Mode: $mode"
-	echo "Explicit: ${green}$expl${reset}"
-	echo "Packages: $deps"
+	echo "Explicit: ${green}${expl[@]}${reset}"
+	echo "Packages: ${deps[*]}"
 	echo
 
 }
