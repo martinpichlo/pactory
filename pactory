@@ -2,13 +2,11 @@
 # 01.01.2018, Martin Pichlo, First Version
 # 16.02.2018, Martin Pichlo, Enhanced command line parameter interpretation
 # 19.02.2018, Martin Pichlo, Bugfixing for reinstalled package, v.1.0.0
-# 25.02.2018, Martin Pichlo, Change strings to arrays
+# 25.02.2018, Martin Pichlo, Change strings to arrays / use output string, v.1.1.0
 
-# Ideen:
-# - Parameter einbauen, dass Originalzeilen, statt pactory Ausgabe erfolgt
-#   (dafür alle Zeilen jeweils in Array ablegen)
-# - true und false auf nicht-String anpassen
-# - Kommentare auf englisch ändern
+# ToDo
+# - paramater for output string
+# - man page
 
 #configuration
 logfile="/var/log/pacman.log"
@@ -20,18 +18,15 @@ string_upr="[ALPM] upgraded"
 string_rem="[ALPM] removed"
 string_rei="reinstalled"
 
-#ersetzen durch "true" und "false" (ohne variable)
-true="1"
-false="0"
-
 #parameters for read command
 IFS=" "					#splitt by space
 
 #declarations
 date=""					#Date
+mode=""					#Mode (installed, removed, upgraded, reinstalled)
 expl=()					#Explicit
 deps=()					#Dependency
-mode=""					#Mode (installed, removed, upgraded, reinstalled)
+output=""               #Output String
 
 # command line parameter interpretation
 POSITIONAL=()
@@ -103,28 +98,28 @@ start() {
 	fi
 
     # loop through all lines in logfiles
-	sot="$false"
+	sot=false
 	while read line
 	do
 
 		# Running pacman...
 		if [[ "$line" == *"$string_run"* ]]; then
 			expl_line="$line"
-			sot="$false"
+			sot=false
             continue
 		fi
 
 		# transaction started
 		if [ -n "$expl_line" ]; then
 			if [[ "$line" == *"$string_sot"* ]]; then
-				sot=$true
+				sot=true
 				split_pacman "$expl_line"
 				continue
 			fi
 		fi
 
 		# packages installed, upgraded, removed or reinstalled
-		if [ "$sot" == "$true" ]; then
+		if [ "$sot" ]; then
 
 			if [[ "$line" == *"$string_ins"* ]] ||
 			   [[ "$line" == *"$string_upr"* ]] ||
@@ -148,13 +143,14 @@ start() {
 			fi
 
             # clear vars for next transaction
-			expl_line=""
             date=""
+			mode=""
 			unset expl
 			unset deps
-			mode=""
 			search=""
-        	sot="$false"
+        	sot=false
+			expl_line=""
+            output=""
 			continue
 		fi
 
@@ -227,7 +223,7 @@ output() {
 	fi
 
     # short output
-    if [[ "${param_short}" = true ]]; then
+    if [ "${param_short}" ]; then
 	    output="%d | %m | <%e> | %p"
     fi
 
