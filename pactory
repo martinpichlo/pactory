@@ -118,7 +118,6 @@ start() {
 		if [ -n "$expl_line" ]; then
 			if [[ "$line" == *"$string_sot"* ]]; then
 				sot=$true
-				#echo "$expl_line"
 				split_pacman "$expl_line"
 				continue
 			fi
@@ -142,7 +141,7 @@ start() {
 			if [ -z "${param_search}" ];then
 				output
 			else
-				search="$date $mode $expl $deps"
+				search="${date} ${mode} ${expl[@]} ${deps[@]}"
 				if [[ ${search} =~ $param_search ]]; then
 					output
 				fi
@@ -179,19 +178,13 @@ split_pacman() {
 
 	#Array durchlaufen
 	options=false
-    expl=()
 	for i in "${array[@]}"; do
 
         # check if options were allready read
         if [ "$options" == true ]; then
 
-			expl+=("$i")
-
-            #if [ -z "$expl" ]; then
-			#	expl="$i"
-			#else
-			#	expl="$expl $i"
-			#fi
+			# add expl to array
+            expl+=("$i")
 
 		fi
 
@@ -212,13 +205,8 @@ split_prog() {
 	prog="${array[4]}"
 	mode="${array[3]}"
 
-	#build string with program names
-	#if [ -z "$deps" ]; then
-	#	deps="$prog"
-	#else
-	#	deps="$deps $prog"
-	#fi
-    deps+=("$mode")
+    #add prog to array
+    deps+=("$prog")
 
 }
 
@@ -236,16 +224,27 @@ output() {
 		return
 	fi
 
-	if [[ "${param_short}" = true ]]; then
-		echo "$date | $mode | ${green}${expl[@]}${reset} | ${deps[@]}"
-        return
-	fi
 
-	echo "Date: $date"
-	echo "Mode: $mode"
-	echo "Explicit: ${green}${expl[@]}${reset}"
-	echo "Packages: ${deps[*]}"
-	echo
+  #%d - Date
+  #%m - Mode
+  #%e - Explicit
+  #%p - Package
+
+    output="Date: %d\nMode: %m\nExplicit: %e\nPackages: %p"
+    output=${output//%d/$date}
+    printf $output
+
+
+	#if [[ "${param_short}" = true ]]; then
+	#	echo "$date | $mode | ${green}${expl[@]}${reset} | ${deps[@]}"
+    #    return
+	#fi
+
+	#echo "Date: $date"
+	#echo "Mode: $mode"
+	#echo "Explicit: ${green}${expl[@]}${reset}"
+	#echo "Packages: ${deps[*]}"
+	#echo
 
 }
 
