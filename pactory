@@ -52,7 +52,7 @@ case $key in
     shift
     ;;
     -h|--help)
-    param_help=true
+    param_usage=true
     shift
     ;;
     *)
@@ -90,31 +90,31 @@ usage() {
 
 start() {
 
-    #help message
-	if [[ "${param_help}" ]]; then
+    # show usage message
+	if [ "${param_usage}" ]; then
         usage
         exit
     fi
 
-	#parameters for echo
-	if [[ "${param_color}" ]]; then
+	# color settings
+	if [ "${param_color}" ]; then
 		green=$(tput setaf 2)
 		reset=$(tput sgr0)
 	fi
 
-	sot="$false"				#Start of Transaction
-
+    # loop through all lines in logfiles
+	sot="$false"
 	while read line
 	do
 
-		#Running pacman...
+		# Running pacman...
 		if [[ "$line" == *"$string_run"* ]]; then
 			expl_line="$line"
 			sot="$false"
             continue
 		fi
 
-		#transaction started
+		# transaction started
 		if [ -n "$expl_line" ]; then
 			if [[ "$line" == *"$string_sot"* ]]; then
 				sot=$true
@@ -123,7 +123,7 @@ start() {
 			fi
 		fi
 
-		#packages installed, upgraded, removed or reinstalled
+		# packages installed, upgraded, removed or reinstalled
 		if [ "$sot" == "$true" ]; then
 
 			if [[ "$line" == *"$string_ins"* ]] ||
@@ -135,7 +135,7 @@ start() {
 		        fi
 		fi
 
-		#transaction completed
+		# transaction completed
 		if [[ "$line" == *"$string_eot"* ]]; then
 
 			if [ -z "${param_search}" ];then
@@ -147,6 +147,7 @@ start() {
 				fi
 			fi
 
+            # clear vars for next transaction
 			expl_line=""
             date=""
 			unset expl
@@ -163,20 +164,19 @@ start() {
 
 split_pacman() {
 
-	#Folgende Zeichen im String löschen ', [, ]
+	# delete charachters:: ' [ ]
 	str=$1
 	str=${str//\'/}
 	str=${str//\[/}
 	str=${str//\]/}
 
-	#String nach Leerzeichen aufsplitten
+	# split string by space
     read -ra array <<< "$str"
 
-	#echo "Pacman Array: ${array[@]}"
+    # set date an time
+    date="${array[0]} ${array[1]}"
 
-	date="${array[0]} ${array[1]}"
-
-	#Array durchlaufen
+	# loop through array
 	options=false
 	for i in "${array[@]}"; do
 
@@ -201,6 +201,7 @@ split_prog() {
 
 	str=$1
 
+    # split string by space
     read -ra array <<< "$str"
 	prog="${array[4]}"
 	mode="${array[3]}"
@@ -212,39 +213,39 @@ split_prog() {
 
 output() {
 
+    # set explicit for pacman -Syu
     if [ -z "$expl" ] && [[ "$mode" == "upgraded" ]]; then
         expl="<UPGRADE>"
     fi
 
-	if [[ "${param_quite}" = true ]]; then
-		read -ra array <<< "$deps"
-		for i in "${array[@]}"; do
+    # quite output 
+	if [ "${param_quite}" ]; then
+		for i in "${deps[@]}"; do
 			echo $i
 		done
-		return
+        return
 	fi
 
+    # short output
+    if [[ "${param_short}" = true ]]; then
+	    output="%d | %m | <%e> | %p"
+    fi
 
-  #%d - Date
-  #%m - Mode
-  #%e - Explicit
-  #%p - Package
+    # long/default output
+    if [ -z "$output"  ]; then
+        output="Date: %d\nMode: %m\nExplicit: <%e>\nPackages: %p\n"
+    fi
 
-    output="Date: %d\nMode: %m\nExplicit: %e\nPackages: %p"
-    output=${output//%d/$date}
-    printf $output
+    # replace placeholder
+    output=${output//</${green}}      #< - green color
+    output=${output//>/${reset}}      #> - color reset
+    output=${output//%d/${date}}      #%d - date
+    output=${output//%m/${mode}}      #%m - mode
+    output=${output//%e/${expl[@]}}   #%e - explicit
+    output=${output//%p/${deps[@]}}   #%p - packages / dependencies
 
-
-	#if [[ "${param_short}" = true ]]; then
-	#	echo "$date | $mode | ${green}${expl[@]}${reset} | ${deps[@]}"
-    #    return
-	#fi
-
-	#echo "Date: $date"
-	#echo "Mode: $mode"
-	#echo "Explicit: ${green}${expl[@]}${reset}"
-	#echo "Packages: ${deps[*]}"
-	#echo
+    # echo output
+    echo -e $output
 
 }
 
