@@ -5,6 +5,7 @@
 # 25.02.2018, Martin Pichlo, Change strings to arrays / use output string, v.1.1.0
 
 # ToDo
+# - parameter for origin logfile lines
 # - paramater for output string
 # - man page
 
