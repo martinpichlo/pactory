@@ -43,6 +43,11 @@ case $key in
     param_color=true
     shift
     ;;
+    -o|--output)
+    param_output="$2"
+    shift
+    shift
+    ;;
     -s|--short)
     param_short=true
     shift
@@ -223,23 +228,29 @@ output() {
         return
 	fi
 
-    # short output
-    if [ "${param_short}" ]; then
-	    output="%d | %m | <%e> | %p"
-    fi
-
-    # long/default output
+    # set output string
+    output="$param_output"
     if [ -z "$output"  ]; then
-        output="Date: %d\nMode: %m\nExplicit: <%e>\nPackages: %p\n"
+
+        # short output
+        if [ "$param_short" ]; then
+	        output="%t | %m | <%e> | %d"
+
+        # long/default output
+        else
+            output="Date: %t\nMode: %m\nExplicit: <%e>\nPackages: %d\n"
+
+        fi
+    
     fi
 
     # replace placeholder
     output=${output//</${green}}      #< - green color
     output=${output//>/${reset}}      #> - color reset
-    output=${output//%d/${date}}      #%d - date
+    output=${output//%t/${date}}      #%t - timestamp
     output=${output//%m/${mode}}      #%m - mode
     output=${output//%e/${expl[@]}}   #%e - explicit
-    output=${output//%p/${deps[@]}}   #%p - packages / dependencies
+    output=${output//%d/${deps[@]}}   #%d - dependencies
 
     # echo output
     echo -e $output
