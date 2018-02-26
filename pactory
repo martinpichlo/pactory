@@ -3,11 +3,13 @@
 # 16.02.2018, Martin Pichlo, Enhanced command line parameter interpretation
 # 19.02.2018, Martin Pichlo, Bugfixing for reinstalled package, v.1.0.0
 # 25.02.2018, Martin Pichlo, Change strings to arrays / use output string, v.1.1.0
+# 26.02.2018, Martin Pichlo, Insert output string parameter
 
 # ToDo
 # - parameter for origin logfile lines
 # - paramater for output string
 # - man page
+# - pacman split: only use parameters without leading minus (-)
 
 #configuration
 logfile="/var/log/pacman.log"
@@ -71,6 +73,7 @@ usage() {
     echo "-q|--quite        quite output (for reusing in other commands like pacman)"
     echo "-c|--color        colored output"
     echo "-s|--short        short output (one line per transaction)"
+    echo "-o|--output       output string format"
 
     #Usage
     #paclog.sh                      - Prints all commands
@@ -86,6 +89,12 @@ usage() {
 
     #Example 1: Select packages and check, if they are installed
     #comm -12 <(pacman -Qq | sort) <(./paclog.sh "installed.*vim" -q | sort)
+
+    #output string
+    #%t - timestamp
+    #%m - mode
+    #%e - explicit
+    #%d - dependencies
 
 }
 
